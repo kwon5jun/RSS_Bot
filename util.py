@@ -13,7 +13,8 @@ def load_env(path=".env"):
         if "=" not in line:
             continue
         key, val = line.split("=", 1)
-        os.environ[key.strip()] = val.strip()
+        val = val.strip().strip('"').strip("'")
+        os.environ[key.strip()] = val
 
 def fetch_rss(url: str) -> bytes:
     """주어진 URL에서 RSS XML을 내려받습니다."""
