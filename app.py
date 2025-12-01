@@ -43,7 +43,7 @@ def load_news(file: str):
     for item in reversed(items[:-1]): # 마지막 항목은 날짜용이므로 제외
         if check_filter(item):
             data = {
-                "content": f"[{m_title}] {item["date"]}\n{item["title"]}\n{item["link"]}",
+                "content": f"[{m_title}] {item['date']}\n{item['title']}\n{item['link']}",
                 "username": "RSS Bot",
                 "attachments": []
             }
