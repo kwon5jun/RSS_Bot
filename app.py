@@ -2,9 +2,7 @@ import requests
 from util import *
 from filter import check_filter
 
-import boannews
-import dailysecu
-import zdkorea
+import update_news
 
 load_env()
 
@@ -42,9 +40,7 @@ def SEND_discord(data: str):
         print(f"메시지 전송 실패: {response.status_code}, {response.text}")
 
 def UPDATE_news():
-    boannews.main()
-    dailysecu.main()
-    zdkorea.main()
+    update_news.main()
 
 def main():
     UPDATE_news()

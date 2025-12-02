@@ -2,7 +2,6 @@ import xml.etree.ElementTree as ET
 from util import *
 
 def boannews():
-    
     fetch_and_save_rss(
         rss_url="http://www.boannews.com/media/news_rss.xml",
         output_path=".json/boannews.json",
