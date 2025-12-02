@@ -6,6 +6,8 @@ from urllib.request import urlopen
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 
+DATE_FMT = "%Y-%m-%d_%H:%M:%S"
+
 def load_env(path=".env"):
     for line in Path(path).read_text(encoding="utf-8").splitlines():
         if not line or line.strip().startswith("#"):
