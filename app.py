@@ -31,7 +31,11 @@ def load_news(file: str):
 
 
 def SEND_discord(data: str):
-    response = requests.post(DISCORD_WEBHOOK_URL, json=data)
+    try:
+        response = requests.post(DISCORD_WEBHOOK_URL, json=data, timeout=10)
+    except Exception as e:
+        print(f"메시지 전송 중 오류 발생: {e}")
+        return
     if response.status_code == 204:
         print("메시지가 성공적으로 전송되었습니다.")
     else:
