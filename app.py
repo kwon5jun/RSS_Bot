@@ -3,6 +3,7 @@ from util import *
 from filter import check_filter
 
 import update_news
+import etnews
 
 load_env()
 
@@ -42,6 +43,7 @@ def SEND_discord(data: str):
 
 def UPDATE_news():
     update_news.main()
+    etnews.main()
 
 def main():
     UPDATE_news()
