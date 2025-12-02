@@ -31,7 +31,7 @@ def truncate_at_first_space(text: str) -> str:
 def GET_text(node, tag):
     """자식 태그의 텍스트를 공백 제거하여 반환하고, 없으면 빈 문자열을 반환합니다."""
     child = node.find(tag)
-    return child.text.strip() if child is not None and child.text else ""
+    return child.text.strip()[:800] if child is not None and child.text else ""
 
 # def format_date(pub_date_text: str,fmt: str) -> str:
 #     try:
