@@ -35,7 +35,8 @@ def SEND_discord(data: str):
         print(f"메시지 전송 중 오류 발생: {e}")
         return
     if response.status_code == 204:
-        print("메시지가 성공적으로 전송되었습니다.")
+        pass
+        # print("메시지가 성공적으로 전송되었습니다.")
     else:
         print(f"메시지 전송 실패: {response.status_code}, {response.text}")
 
