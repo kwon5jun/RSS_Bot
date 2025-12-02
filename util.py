@@ -86,7 +86,7 @@ def GET_text(node, tag):
 #     except Exception:
 #         return pub_date_text  # 파싱 실패 시 원문 유지
     
-def format_date(pub_date_text: str,date_fmt: str) -> str:
+def format_date(pub_date_text: str,date_fmt=DATE_FMT) -> str:
     """RSS 날짜 문자열을 원하는 포맷으로 변환합니다."""
     if not pub_date_text:
         return ""
@@ -100,7 +100,7 @@ def format_date(pub_date_text: str,date_fmt: str) -> str:
 
     # fallback: 2025-11-28 17:31:26 또는 ISO 형태
     if dt is None:
-        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M"):
             try:
                 dt = datetime.strptime(pub_date_text, fmt)
                 break
