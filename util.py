@@ -8,6 +8,50 @@ from email.utils import parsedate_to_datetime
 
 DATE_FMT = "%Y-%m-%d_%H:%M:%S"
 
+from typing import Iterable, Callable
+
+def fetch_and_save_rss(
+    rss_url: str,
+    output_path: str,
+    title_tag: str,
+    link_tag: str,
+    description_tag: str,
+    date_tag: str,
+    creator_tag: str,
+):
+    xml_bytes = fetch_rss(rss_url)
+    root = ET.fromstring(decode_xml(xml_bytes))
+    channel = root.find("channel")
+    if channel is None:
+        raise ValueError("Invalid RSS: missing channel")
+    try:
+        last_date = load_json(output_path).get('items', [])[0].get('date', '') if Path(output_path).exists() else ""
+    except:
+        last_date = ""  # 파일이 없으면 모두 신규로 간주
+    items = []
+    for item in channel.findall("item"):
+        item_date = format_date(GET_text(item, date_tag), DATE_FMT)
+        if ((last_date < item_date) - (last_date > item_date)) >= 0:
+            items.append(
+                {
+                    "title": GET_text(item, title_tag),
+                    "link": GET_text(item, link_tag),
+                    "description": GET_text(item, description_tag),
+                    "creator": GET_text(item, creator_tag),
+                    "date": item_date,
+                }
+        )
+
+    save_json(
+        {
+            "title": truncate_at_first_space(GET_text(channel, "title")),
+            "link": GET_text(channel, "link"),
+            "items": items,
+        },
+        output_path,
+    )
+
+
 def load_env(path=".env"):
     for line in Path(path).read_text(encoding="utf-8").splitlines():
         if not line or line.strip().startswith("#"):
