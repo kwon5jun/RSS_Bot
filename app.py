@@ -4,6 +4,7 @@ from filter import check_filter
 
 import boannews
 import dailysecu
+import zdkorea
 
 load_env()
 
@@ -39,6 +40,7 @@ def SEND_discord(data: str):
 def UPDATE_news():
     boannews.main()
     dailysecu.main()
+    zdkorea.main()
 
 def main():
     UPDATE_news()
