@@ -4,8 +4,9 @@ def check_filter(item: dict) -> bool:
     keywords = ["긴급", "경고", "취약", "보안", "위협", "해킹", "유출", "랜섬웨어", "악성코드"]
     
     # 차단시킬 키워드 제목, 내용
-    blacklist = ["게임", "광고", "이벤트", "쿠폰", "할인", "프로모션", "특가", "팝업"
-                , "출시", "브랜드", "세일", "프랜차이즈", "[리뷰]", "[인사]", "[부고]"]
+    blacklist = ["게임", "광고", "이벤트", "쿠폰", "할인", "프로모션", "특가", "팝업", "홈쇼핑"
+                , "출시", "브랜드", "세일", "프랜차이즈", "[리뷰]", "[인사]", "[부고]", "기부"
+                , "[부음]", "시험인증 대상"]
     
     # 차단시킬 작성자
     blackcreators = [] #["IP전략연구소" ]
@@ -25,3 +26,12 @@ def check_filter(item: dict) -> bool:
         return False
     # 다 없으면 통과
     return True
+
+if __name__ == "__main__":
+    # 테스트용 예제
+    test_item = {
+      "title": "",
+      "description": "",
+      "creator": "",
+    }
+    print(check_filter(test_item))
