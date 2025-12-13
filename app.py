@@ -46,7 +46,7 @@ def UPDATE_news():
     etnews.main()
 
 def main():
-    #UPDATE_news()
+    UPDATE_news()
     for path in Path(".json").glob("etnews.json"):
         load_news(path)
 
