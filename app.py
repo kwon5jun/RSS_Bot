@@ -15,11 +15,11 @@ def load_news(file: str):
     json_data = load_json(file)
     items = json_data.get("items", [])
     
-    if len(items) <= 1:
-        return  # 아이템이 없거나 날짜용 하나만 있는 경우 종료
+    if len(items) < 1:
+        return  # 신규 뉴스가 없음
     
     m_title = json_data["title"]
-    for item in reversed(items[:-1]):   # 마지막 항목은 날짜용이므로 제외
+    for item in reversed(items):  # 오래된 순서대로 처리
         if check_filter(item):          # 키워드 필터링
             data = {
                 "content": f"[{m_title}] {item['date']}\n{item['title']}\n{item['link']}",
@@ -46,8 +46,8 @@ def UPDATE_news():
     etnews.main()
 
 def main():
-    UPDATE_news()
-    for path in Path(".json").glob("*.json"):
+    #UPDATE_news()
+    for path in Path(".json").glob("etnews.json"):
         load_news(path)
 
 if __name__ == "__main__":

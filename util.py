@@ -25,7 +25,7 @@ def fetch_and_save_rss(
     if channel is None:
         raise ValueError("Invalid RSS: missing channel")
     try:
-        last_date = load_json(output_path).get('items', [])[0].get('date', '') if Path(output_path).exists() else ""
+        last_date = load_json(output_path).get('last_updated', '') if Path(output_path).exists() else ""
     except:
         last_date = ""  # 파일이 없으면 모두 신규로 간주
     items = []
@@ -46,6 +46,7 @@ def fetch_and_save_rss(
         {
             "title": truncate_at_first_space(GET_text(channel, "title")),
             "link": GET_text(channel, "link"),
+            "last_updated": datetime.now().strftime(DATE_FMT),
             "items": items,
         },
         output_path,

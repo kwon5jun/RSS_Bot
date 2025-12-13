@@ -28,10 +28,10 @@ def fetch_page(page: int = 1, section: str = "03"):
             link = f"https://www.etnews.com{link}"
         item_date = format_date(li.select_one(".date").get_text(strip=True)) if li.select_one(".date") else ""
         try:
-            last_date = format_date(load_json(OUTPUT_PATH).get('items', [])[0].get('date', '')) if Path(OUTPUT_PATH).exists() else ""
+            last_date = format_date(load_json(OUTPUT_PATH).get('last_updated', '')) if Path(OUTPUT_PATH).exists() else ""
         except Exception:
             last_date = ""
-        print(last_date,item_date,((last_date < item_date) - (last_date > item_date)))
+        #print(last_date,item_date,((last_date < item_date) - (last_date > item_date)))
         if (datetime.now().strftime(DATE_FMT) < item_date):
             item_date = datetime.now().strftime(DATE_FMT)
         if ((last_date < item_date) - (last_date > item_date)) >= 0:
@@ -47,6 +47,7 @@ def fetch_page(page: int = 1, section: str = "03"):
     return {
         "title": f"전자신문",
         "link": resp.url,
+        "last_updated": datetime.now().strftime(DATE_FMT),
         "items": articles,
     }
 
