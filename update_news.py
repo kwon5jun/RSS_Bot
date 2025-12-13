@@ -45,4 +45,5 @@ if __name__ == "__main__":
     # boannews()
     # dailysecu()
     # zdkorea()
+    main()
     pass

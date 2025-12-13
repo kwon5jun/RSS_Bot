@@ -17,7 +17,9 @@ def fetch_page(page: int = 1, section: str = "03"):
     resp.raise_for_status()
     resp.encoding = resp.apparent_encoding
     soup = BeautifulSoup(resp.text, "html.parser")
-    articles = []
+    
+    max_seen = ''
+    items = []
     for li in soup.select("ul.news_list > li"):
         title_tag = li.select_one("div.text > strong > a")
         if not title_tag:
@@ -27,15 +29,15 @@ def fetch_page(page: int = 1, section: str = "03"):
         if not link.startswith("http"):
             link = f"https://www.etnews.com{link}"
         item_date = format_date(li.select_one(".date").get_text(strip=True)) if li.select_one(".date") else ""
+        
         try:
             last_date = format_date(load_json(OUTPUT_PATH).get('last_updated', '')) if Path(OUTPUT_PATH).exists() else ""
         except Exception:
             last_date = ""
-        #print(last_date,item_date,((last_date < item_date) - (last_date > item_date)))
-        if (datetime.now().strftime(DATE_FMT) < item_date):
-            item_date = datetime.now().strftime(DATE_FMT)
-        if ((last_date < item_date) - (last_date > item_date)) >= 0:
-            articles.append(
+        if item_date and item_date > max_seen:
+            max_seen = item_date
+        if item_date and last_date < item_date:
+            items.append(
                 {
                     "title": title,
                     "link": link,
@@ -47,8 +49,8 @@ def fetch_page(page: int = 1, section: str = "03"):
     return {
         "title": f"전자신문",
         "link": resp.url,
-        "last_updated": datetime.now().strftime(DATE_FMT),
-        "items": articles,
+        "last_updated": max_seen,
+        "items": items,
     }
 
 def main():
