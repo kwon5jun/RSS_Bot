@@ -1,5 +1,6 @@
 import requests
 from util import *
+import time
 from filter import check_filter
 
 import update_news
@@ -30,6 +31,7 @@ def load_news(file: str):
 
 
 def SEND_discord(data: str):
+    time.sleep(500) # 디스코드 메시지 전송 간격 조절 (밀리초)
     try:
         response = requests.post(DISCORD_WEBHOOK_URL, json=data, timeout=10)
     except Exception as e:
@@ -40,6 +42,7 @@ def SEND_discord(data: str):
         # print("메시지가 성공적으로 전송되었습니다.")
     else:
         print(f"메시지 전송 실패: {response.status_code}, {response.text}")
+        print(f"전송 데이터: {data}")
 
 def UPDATE_news():
     update_news.main()
