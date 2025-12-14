@@ -47,7 +47,7 @@ def UPDATE_news():
 
 def main():
     UPDATE_news()
-    for path in Path(".json").glob("etnews.json"):
+    for path in Path(".json").glob("*.json"):
         load_news(path)
 
 if __name__ == "__main__":
