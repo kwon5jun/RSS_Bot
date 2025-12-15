@@ -31,7 +31,7 @@ def load_news(file: str):
 
 
 def SEND_discord(data: str):
-    time.sleep(500) # 디스코드 메시지 전송 간격 조절 (밀리초)
+    time.sleep(0.5) # 디스코드 메시지 전송 간격 조절 (단위 초)
     try:
         response = requests.post(DISCORD_WEBHOOK_URL, json=data, timeout=10)
     except Exception as e:
