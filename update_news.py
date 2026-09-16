@@ -3,13 +3,13 @@ from util import *
 
 def boannews():
     fetch_and_save_rss(
-        rss_url="http://www.boannews.com/media/news_rss.xml",
+        rss_url="https://www.boannews.com/rss/allArticle.xml",
         output_path=".json/boannews.json",
         title_tag="title",
         link_tag="link",
         description_tag="description",
-        date_tag="{http://purl.org/dc/elements/1.1/}date",
-        creator_tag="{http://purl.org/dc/elements/1.1/}creator",
+        date_tag="pubDate",
+        creator_tag="author",
     )
 
 def dailysecu():
