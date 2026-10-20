@@ -19,43 +19,49 @@ def fetch_and_save_rss(
     date_tag: str,
     creator_tag: str,
 ):
-    xml_bytes = fetch_rss(rss_url)
-    root = ET.fromstring(decode_xml(xml_bytes))
-    channel = root.find("channel")
-    if channel is None:
-        raise ValueError("Invalid RSS: missing channel")
-    
     try:
-        last_date = load_json(output_path).get('last_updated', '') if Path(output_path).exists() else ""
-    except:
-        last_date = ""  # 파일이 없으면 모두 신규로 간주
-    
-    max_seen = ''
-    items = []
-    for item in channel.findall("item"):
-        item_date = format_date(GET_text(item, date_tag), DATE_FMT)
-        if item_date and item_date > max_seen:
-            max_seen = item_date
-        if item_date and last_date < item_date:
-            items.append(
-                {
-                    "title": GET_text(item, title_tag),
-                    "link": GET_text(item, link_tag),
-                    "description": GET_text(item, description_tag),
-                    "creator": GET_text(item, creator_tag),
-                    "date": item_date,
-                }
-        )
+        xml_bytes = fetch_rss(rss_url)
+        root = ET.fromstring(decode_xml(xml_bytes))
+        channel = root.find("channel")
+        if channel is None:
+            raise ValueError("Invalid RSS: missing channel")
 
-    save_json(
-        {
-            "title": truncate_at_first_space(GET_text(channel, "title")),
-            "link": GET_text(channel, "link"),
-            "last_updated": max_seen,
-            "items": items,
-        },
-        output_path,
-    )
+        try:
+            last_date = load_json(output_path).get("last_updated", "") if Path(output_path).exists() else ""
+        except Exception:
+            last_date = ""  # 파일이 없거나 손상되면 모두 신규로 간주
+
+        max_seen = ""
+        items = []
+        for item in channel.findall("item"):
+            item_date = format_date(GET_text(item, date_tag), DATE_FMT)
+            if item_date and item_date > max_seen:
+                max_seen = item_date
+            if item_date and last_date < item_date:
+                items.append(
+                    {
+                        "title": GET_text(item, title_tag),
+                        "link": GET_text(item, link_tag),
+                        "description": GET_text(item, description_tag),
+                        "creator": GET_text(item, creator_tag),
+                        "date": item_date,
+                    }
+                )
+
+        save_json(
+            {
+                "title": truncate_at_first_space(GET_text(channel, "title")),
+                "link": GET_text(channel, "link"),
+                "last_updated": max_seen,
+                "items": items,
+            },
+            output_path,
+        )
+        return True
+
+    except Exception as exc:
+        print(f"[RSS ERROR] {rss_url} -> {type(exc).__name__}: {exc}")
+        return False
 
 
 def load_env(path=".env"):
