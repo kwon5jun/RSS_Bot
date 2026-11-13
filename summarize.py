@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from util import load_env, load_json, save_json
 from daily import DAILY_PATH
+from gmail import send_summary_mail
 
 SUMMARY_PATH = "daily_summary.json"
 
@@ -38,9 +39,11 @@ SYSTEM_PROMPT = """당신은 보안·IT 뉴스 큐레이터입니다.
 2. 스팸·단순 홍보 제외: 특정 업체의 제품·서비스 출시나 기능 소개, 수상·인증 획득 자랑,
    행사·이벤트·전시 참가 안내, 협약(MOU) 체결 소식처럼 독자에게 새로운 정보나 시사점이 없는
    보도자료성 기사는 제외합니다. 인사·부고 기사도 제외합니다.
-3. 보안 사고, 취약점, 위협 동향, 정책·규제 변화, 업계 동향 분석처럼 정보 가치가 있는 기사는 남깁니다.
+3. 가치 있는 기사만 남기고 분류: 1, 2번을 거친 기사 중에서도 독자에게 실질적인 정보 가치가 있는 기사만 남깁니다.
+   보안 사고·침해, 취약점, 위협·공격 동향, 정책·규제 변화, 업계에 영향을 주는 동향 분석이 이에 해당합니다.
+   정보 가치가 낮거나 위 범주에 해당하지 않는 기사는 제외합니다.
 
-판단이 애매하면 남기는 쪽을 택하세요. 반환하는 번호는 입력에 있는 번호만 사용하세요."""
+반환하는 번호는 입력에 있는 번호만 사용하세요."""
 
 
 class Selection(BaseModel):
@@ -99,20 +102,30 @@ def main():
         print(f"[SUMMARY ERROR] {e}")
         return
 
-    selected = [{"no": n, **items[n - 1]} for n in keep]
-    save_json(
+    # 반환받은 번호 -> 제목, description, 링크
+    selected = [
         {
-            "date": daily.get("date"),
-            "created_at": datetime.now().strftime("%Y-%m-%d_%H:%M:%S"),
-            "model": MODEL,
-            "effort": EFFORT,
-            "total": len(items),
-            "count": len(selected),
-            "items": selected,
-        },
-        SUMMARY_PATH,
-    )
+            "title": items[n - 1].get("title", ""),
+            "description": items[n - 1].get("description", ""),
+            "link": items[n - 1].get("link", ""),
+        }
+        for n in keep
+    ]
+    summary = {
+        "date": daily.get("date"),
+        "created_at": datetime.now().strftime("%Y-%m-%d_%H:%M:%S"),
+        "total": len(items),
+        "count": len(selected),
+        "items": selected,
+    }
+    save_json(summary, SUMMARY_PATH)
     print(f"{daily.get('date')}: {len(items)}건 중 {len(selected)}건 선별 -> {SUMMARY_PATH}")
+
+    try:
+        send_summary_mail(summary)
+        print("메일 전송 완료")
+    except Exception as e:
+        print(f"[MAIL ERROR] {type(e).__name__}: {e}")
 
 
 if __name__ == "__main__":
