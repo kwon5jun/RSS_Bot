@@ -30,13 +30,12 @@ def load_news(file: str):
     safe_date = last_updated
     prev_date = None
     failed_at = None
-    processed = []  # daily.json에 기록할 처리 완료 기사 (전송 또는 필터 제외)
+    processed = []  # daily.json에 기록할 전송 완료 기사 (필터에 걸린 기사는 제외)
     for idx, item in enumerate(items):
         date = item.get("date", "")
         if prev_date is not None and date != prev_date:
             safe_date = max(safe_date, prev_date)
-        passed = check_filter(item)
-        if passed:          # 키워드 필터링
+        if check_filter(item):          # 키워드 필터링
             data = {
                 "content": f"[{m_title}] {item['date']}\n{item['title']}\n{item['link']}",
                 "username": "RSS Bot",
@@ -45,7 +44,7 @@ def load_news(file: str):
             if not SEND_discord(data):
                 failed_at = idx
                 break
-        processed.append({**item, "sent": passed})
+            processed.append(item)
         prev_date = date
     else:
         if prev_date is not None:

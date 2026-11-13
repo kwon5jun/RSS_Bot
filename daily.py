@@ -1,5 +1,5 @@
 # daily.py
-# 하루 동안 수집(처리)된 기사를 daily.json 한 파일에 누적 저장한다.
+# 하루 동안 전송된 기사(필터 통과)를 daily.json 한 파일에 누적 저장한다.
 # 날짜(실행 시점 기준)가 바뀌면 새 날짜로 초기화된다.
 from datetime import datetime
 from util import load_json, save_json
