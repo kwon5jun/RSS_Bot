@@ -1,2 +1,4 @@
 .json/
 __pycache__/
+daily.json
+daily_summary.json
