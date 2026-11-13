@@ -9,7 +9,6 @@
 # 모든 값은 따옴표("..." / '...') 사용 가능
 import os
 import smtplib
-from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from html import escape
@@ -23,7 +22,7 @@ SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 465  # SSL
 SMTP_TIMEOUT = 30  # 단위 초
 
-# 메일 제목 ({date}는 발송일자 YYYY-MM-DD)
+# 메일 제목 ({date}는 본문 첫 줄과 같은 날짜: daily.json의 수집 날짜 YYYY-MM-DD)
 SUBJECT_FORMAT = "[보안동향] 보안뉴스 종합 ({date})"
 
 
@@ -45,7 +44,7 @@ def parse_receivers(value: str) -> list:
 
 
 def build_body(summary: dict) -> tuple:
-    """메일 제목(발송일자 기준)과 본문(텍스트, HTML)을 만든다. 주제 제목은 HTML에서 볼드체로 표시한다."""
+    """메일 제목과 본문(텍스트, HTML)을 만든다. 주제 제목은 HTML에서 볼드체로 표시한다."""
     topics = summary.get("topics", [])
     head = f"{summary.get('date')} 보안 뉴스 ({summary.get('total')}건 중 {summary.get('count', 0)}건 선별)"
 
@@ -67,7 +66,7 @@ def build_body(summary: dict) -> tuple:
                 f'<br><span style="color:#555">{escape(desc)}</span></li>'
             )
         html_lines.append("</ol>")
-    subject = SUBJECT_FORMAT.format(date=datetime.now().strftime("%Y-%m-%d"))  # 발송일자
+    subject = SUBJECT_FORMAT.format(date=summary.get("date"))  # 본문 첫 줄과 같은 날짜
     return subject, "\n".join(text_lines), "\n".join(html_lines)
 
 
