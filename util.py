@@ -26,17 +26,11 @@ def fetch_and_save_rss(
         if channel is None:
             raise ValueError("Invalid RSS: missing channel")
 
-        try:
-            last_date = load_json(output_path).get("last_updated", "") if Path(output_path).exists() else ""
-        except Exception:
-            last_date = ""  # 파일이 없거나 손상되면 모두 신규로 간주
+        last_date = load_last_updated(output_path)
 
-        max_seen = ""
         items = []
         for item in channel.findall("item"):
             item_date = format_date(GET_text(item, date_tag), DATE_FMT)
-            if item_date and item_date > max_seen:
-                max_seen = item_date
             if item_date and last_date < item_date:
                 items.append(
                     {
@@ -52,7 +46,8 @@ def fetch_and_save_rss(
             {
                 "title": truncate_at_first_space(GET_text(channel, "title")),
                 "link": GET_text(channel, "link"),
-                "last_updated": max_seen,
+                # 전송 완료 기준 시각. 여기서는 갱신하지 않고 app.py가 전송 성공 후 갱신한다.
+                "last_updated": last_date,
                 "items": items,
             },
             output_path,
@@ -64,7 +59,18 @@ def fetch_and_save_rss(
         return False
 
 
+def load_last_updated(path: str) -> str:
+    """저장된 JSON에서 마지막으로 전송 완료된 기사 시각을 읽습니다. 없거나 손상되면 빈 문자열."""
+    try:
+        return load_json(path).get("last_updated", "") if Path(path).exists() else ""
+    except Exception:
+        return ""  # 파일이 손상되면 모두 신규로 간주
+
+
 def load_env(path=".env"):
+    """.env 파일이 있으면 읽어 환경변수로 설정합니다. 없으면 기존 환경변수를 그대로 사용합니다."""
+    if not Path(path).exists():
+        return
     for line in Path(path).read_text(encoding="utf-8").splitlines():
         if not line or line.strip().startswith("#"):
             continue
@@ -74,9 +80,11 @@ def load_env(path=".env"):
         val = val.strip().strip('"').strip("'")
         os.environ[key.strip()] = val
 
-def fetch_rss(url: str) -> bytes:
+FETCH_TIMEOUT = 10  # RSS 요청 타임아웃 (단위 초)
+
+def fetch_rss(url: str, timeout: float = FETCH_TIMEOUT) -> bytes:
     """주어진 URL에서 RSS XML을 내려받습니다."""
-    with urlopen(url) as resp:
+    with urlopen(url, timeout=timeout) as resp:
         return resp.read()
 
 def truncate_at_first_space(text: str) -> str:

@@ -18,7 +18,7 @@ def fetch_page(page: int = 1, section: str = "03"):
     resp.encoding = resp.apparent_encoding
     soup = BeautifulSoup(resp.text, "html.parser")
     
-    max_seen = ''
+    last_date = load_last_updated(OUTPUT_PATH)
     items = []
     for li in soup.select("ul.news_list > li"):
         title_tag = li.select_one("div.text > strong > a")
@@ -29,13 +29,6 @@ def fetch_page(page: int = 1, section: str = "03"):
         if not link.startswith("http"):
             link = f"https://www.etnews.com{link}"
         item_date = format_date(li.select_one(".date").get_text(strip=True)) if li.select_one(".date") else ""
-        
-        try:
-            last_date = format_date(load_json(OUTPUT_PATH).get('last_updated', '')) if Path(OUTPUT_PATH).exists() else ""
-        except Exception:
-            last_date = ""
-        if item_date and item_date > max_seen:
-            max_seen = item_date
         if item_date and last_date < item_date:
             items.append(
                 {
@@ -49,12 +42,18 @@ def fetch_page(page: int = 1, section: str = "03"):
     return {
         "title": f"전자신문",
         "link": resp.url,
-        "last_updated": max_seen,
+        # 전송 완료 기준 시각. 여기서는 갱신하지 않고 app.py가 전송 성공 후 갱신한다.
+        "last_updated": last_date,
         "items": items,
     }
 
 def main():
-    save_json(fetch_page(page=1, section="03"), OUTPUT_PATH)
+    try:
+        save_json(fetch_page(page=1, section="03"), OUTPUT_PATH)
+        return True
+    except Exception as exc:
+        print(f"[ETNEWS ERROR] {type(exc).__name__}: {exc}")
+        return False
     
 if __name__ == "__main__":
     main()
