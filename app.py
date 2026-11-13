@@ -2,6 +2,7 @@ import requests
 from util import *
 import time
 from filter import check_filter
+from daily import append_daily
 
 import update_news
 import etnews
@@ -29,11 +30,13 @@ def load_news(file: str):
     safe_date = last_updated
     prev_date = None
     failed_at = None
+    processed = []  # daily.json에 기록할 처리 완료 기사 (전송 또는 필터 제외)
     for idx, item in enumerate(items):
         date = item.get("date", "")
         if prev_date is not None and date != prev_date:
             safe_date = max(safe_date, prev_date)
-        if check_filter(item):          # 키워드 필터링
+        passed = check_filter(item)
+        if passed:          # 키워드 필터링
             data = {
                 "content": f"[{m_title}] {item['date']}\n{item['title']}\n{item['link']}",
                 "username": "RSS Bot",
@@ -42,6 +45,7 @@ def load_news(file: str):
             if not SEND_discord(data):
                 failed_at = idx
                 break
+        processed.append({**item, "sent": passed})
         prev_date = date
     else:
         if prev_date is not None:
@@ -51,6 +55,12 @@ def load_news(file: str):
     json_data["last_updated"] = safe_date
     json_data["items"] = [] if failed_at is None else [i for i in items if i.get("date", "") > safe_date]
     save_json(json_data, file)
+
+    # 하루치 기사 기록 (실패로 재시도될 기사는 다음 실행에서 기록됨)
+    try:
+        append_daily(m_title, processed)
+    except Exception as e:
+        print(f"[DAILY ERROR] {type(e).__name__}: {e}")
 
 
 def SEND_discord(data: dict) -> bool:
