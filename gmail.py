@@ -5,11 +5,15 @@
 #   SENDER_EMAIL=보내는 Gmail 주소
 #   SENDER_PASSWD=Gmail 앱 비밀번호 (구글 계정 2단계 인증 후 발급, 일반 로그인 비밀번호는 거부됨)
 #   Receive_email=받는 주소 (여러 명이면 쉼표로 구분)
+#     예) Receive_email="a@gmail.com, b@naver.com"  또는  Receive_email="a@gmail.com", "b@naver.com"
+# 모든 값은 따옴표("..." / '...') 사용 가능
 import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from html import escape
+
+from util import unquote
 
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 465  # SSL
@@ -21,6 +25,16 @@ def _get_env(name: str) -> str:
     if not value:
         raise RuntimeError(f"환경변수 {name}이 설정되지 않았습니다.")
     return value
+
+
+def parse_receivers(value: str) -> list:
+    """쉼표로 구분된 받는 주소 목록을 만든다. 주소별 따옴표와 공백을 제거하고 중복은 한 번만 넣는다."""
+    receivers = []
+    for part in value.split(","):
+        addr = unquote(part)
+        if addr and addr not in receivers:
+            receivers.append(addr)
+    return receivers
 
 
 def build_body(summary: dict) -> tuple:
@@ -52,7 +66,9 @@ def build_body(summary: dict) -> tuple:
 def send_summary_mail(summary: dict) -> None:
     sender = _get_env("SENDER_EMAIL")
     passwd = _get_env("SENDER_PASSWD")
-    receivers = [r.strip() for r in _get_env("Receive_email").split(",") if r.strip()]
+    receivers = parse_receivers(_get_env("Receive_email"))
+    if not receivers:
+        raise RuntimeError("Receive_email에 받는 주소가 없습니다.")
 
     subject, text, html = build_body(summary)
     msg = MIMEMultipart("alternative")
