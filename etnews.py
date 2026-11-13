@@ -3,6 +3,9 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone
 from util import *
+from logger import get_logger
+
+log = get_logger("etnews")
 
 BASE_URL = "https://www.etnews.com/news/section.html"
 OUTPUT_PATH = ".json/etnews.json"
@@ -49,10 +52,12 @@ def fetch_page(page: int = 1, section: str = "03"):
 
 def main():
     try:
-        save_json(fetch_page(page=1, section="03"), OUTPUT_PATH)
+        data = fetch_page(page=1, section="03")
+        save_json(data, OUTPUT_PATH)
+        log.info(f"전자신문 수집 -> 신규 {len(data['items'])}건")
         return True
     except Exception as exc:
-        print(f"[ETNEWS ERROR] {type(exc).__name__}: {exc}")
+        log.error(f"전자신문 수집 실패 -> {type(exc).__name__}: {exc}")
         return False
     
 if __name__ == "__main__":

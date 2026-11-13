@@ -17,3 +17,6 @@ crontab 예시 (날짜가 바뀌기 전에 실행해야 해당 날짜의 daily.j
 .env 값은 따옴표 없이, "..." 또는 '...'로 감싸서 모두 사용 가능 (export KEY=... 형식도 가능)
 Receive_email은 쉼표로 구분하면 여러 명에게 각자 개별 메일로 전송 (받는 사람에게는 자신의 주소만 보임)
   예) Receive_email="a@gmail.com, b@naver.com"  또는  Receive_email="a@gmail.com", "b@naver.com"
+
+로그: 실행 위치의 log/ 폴더에 일자별로 기록 (log/YYYY-MM-DD.log), 콘솔에도 동일하게 출력
+  수집/전송 건수, 필터 제외 건수, 선별 결과, 메일 수신자별 전송 결과, 오류(트레이스백 포함) 기록

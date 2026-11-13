@@ -7,6 +7,10 @@ from urllib.request import urlopen
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 
+from logger import get_logger
+
+log = get_logger("util")
+
 DATE_FMT = "%Y-%m-%d_%H:%M:%S"
 
 from typing import Iterable, Callable
@@ -53,10 +57,11 @@ def fetch_and_save_rss(
             },
             output_path,
         )
+        log.info(f"RSS 수집 {rss_url} -> 신규 {len(items)}건")
         return True
 
     except Exception as exc:
-        print(f"[RSS ERROR] {rss_url} -> {type(exc).__name__}: {exc}")
+        log.error(f"RSS 수집 실패 {rss_url} -> {type(exc).__name__}: {exc}")
         return False
 
 

@@ -14,6 +14,9 @@ from email.mime.text import MIMEText
 from html import escape
 
 from util import unquote
+from logger import get_logger
+
+log = get_logger("gmail")
 
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 465  # SSL
@@ -85,9 +88,10 @@ def send_summary_mail(summary: dict) -> None:
             msg.attach(MIMEText(html, "html", "utf-8"))
             try:
                 smtp.sendmail(sender, [receiver], msg.as_string())
+                log.info(f"메일 전송 -> {receiver}")
             except smtplib.SMTPException as e:
                 # 한 명이 실패해도 나머지에게는 계속 전송
-                print(f"[MAIL ERROR] {receiver} -> {type(e).__name__}: {e}")
+                log.error(f"메일 전송 실패 -> {receiver}: {type(e).__name__}: {e}")
                 failed.append(receiver)
 
     if failed:

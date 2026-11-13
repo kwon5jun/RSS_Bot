@@ -5,6 +5,7 @@
 # 사용: python summarize.py   (crontab으로 하루 한 번 실행)
 # 필요: .env 또는 환경변수에 ANTHROPIC_API_KEY
 from datetime import datetime
+from pathlib import Path
 from typing import List
 
 import anthropic
@@ -13,6 +14,9 @@ from pydantic import BaseModel
 from util import load_env, load_json, save_json
 from daily import DAILY_PATH
 from gmail import send_summary_mail
+from logger import get_logger
+
+log = get_logger("summarize")
 
 SUMMARY_PATH = "daily_summary.json"
 
@@ -111,24 +115,29 @@ def select_articles(client: anthropic.Anthropic, items: list) -> List[dict]:
 
 
 def main():
+    log.info("===== 기사 선별/메일 전송 시작 =====")
     load_env()
+    if not Path(DAILY_PATH).exists():
+        log.warning(f"{DAILY_PATH} 파일이 없습니다.")
+        return
     daily = load_json(DAILY_PATH)
     items = daily.get("items", [])
     if not items:
-        print("daily.json에 기사가 없습니다.")
+        log.warning("daily.json에 기사가 없습니다.")
         return
+    log.info(f"{daily.get('date')} 기사 {len(items)}건을 {MODEL}(effort={EFFORT})로 선별 요청")
 
     client = anthropic.Anthropic()  # ANTHROPIC_API_KEY 환경변수 사용
     try:
         groups = select_articles(client, items)
     except anthropic.APIConnectionError as e:
-        print(f"[SUMMARY ERROR] 네트워크 오류: {e}")
+        log.error(f"Claude API 네트워크 오류: {e}")
         return
     except anthropic.APIStatusError as e:
-        print(f"[SUMMARY ERROR] API 오류 {e.status_code}: {e.message}")
+        log.error(f"Claude API 오류 {e.status_code}: {e.message}")
         return
     except RuntimeError as e:
-        print(f"[SUMMARY ERROR] {e}")
+        log.error(f"선별 실패: {e}")
         return
 
     # 반환받은 번호 -> 제목, description, 링크 (주제별)
@@ -155,13 +164,16 @@ def main():
         "topics": topics,
     }
     save_json(summary, SUMMARY_PATH)
-    print(f"{daily.get('date')}: {len(items)}건 중 {count}건, {len(topics)}개 주제로 선별 -> {SUMMARY_PATH}")
+    log.info(f"{daily.get('date')}: {len(items)}건 중 {count}건, {len(topics)}개 주제로 선별 -> {SUMMARY_PATH}")
+    for t in topics:
+        log.info(f"  @{t['topic']}: {len(t['items'])}건")
 
     try:
         send_summary_mail(summary)
-        print("메일 전송 완료")
+        log.info("메일 전송 완료")
     except Exception as e:
-        print(f"[MAIL ERROR] {type(e).__name__}: {e}")
+        log.error(f"메일 전송 실패: {type(e).__name__}: {e}")
+    log.info("===== 기사 선별/메일 전송 종료 =====")
 
 
 if __name__ == "__main__":
