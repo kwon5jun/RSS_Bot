@@ -2,3 +2,4 @@
 __pycache__/
 daily.json
 daily_summary.json
+log/

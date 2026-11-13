@@ -1,10 +1,15 @@
 import os
+import re
 import json
 from datetime import datetime
 from pathlib import Path
 from urllib.request import urlopen
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
+
+from logger import get_logger
+
+log = get_logger("util")
 
 DATE_FMT = "%Y-%m-%d_%H:%M:%S"
 
@@ -52,10 +57,11 @@ def fetch_and_save_rss(
             },
             output_path,
         )
+        log.info(f"RSS 수집 {rss_url} -> 신규 {len(items)}건")
         return True
 
     except Exception as exc:
-        print(f"[RSS ERROR] {rss_url} -> {type(exc).__name__}: {exc}")
+        log.error(f"RSS 수집 실패 {rss_url} -> {type(exc).__name__}: {exc}")
         return False
 
 
@@ -67,18 +73,32 @@ def load_last_updated(path: str) -> str:
         return ""  # 파일이 손상되면 모두 신규로 간주
 
 
+_QUOTED = re.compile(r"""^(["'])((?:(?!\1).)*)\1\s*(?:#.*)?$""")
+
+def unquote(value: str) -> str:
+    """앞뒤 공백을 지우고, 값 전체가 따옴표("..." 또는 '...')로 감싸져 있으면 벗겨냅니다."""
+    value = value.strip()
+    m = _QUOTED.match(value)
+    return m.group(2) if m else value
+
+
 def load_env(path=".env"):
-    """.env 파일이 있으면 읽어 환경변수로 설정합니다. 없으면 기존 환경변수를 그대로 사용합니다."""
+    """.env 파일이 있으면 읽어 환경변수로 설정합니다. 없으면 기존 환경변수를 그대로 사용합니다.
+
+    KEY=value, KEY="value", KEY='value', export KEY=value 형식을 지원합니다.
+    따옴표로 감싼 값은 따옴표만 벗겨내고 안쪽 내용(공백, # 포함)은 그대로 사용합니다.
+    """
     if not Path(path).exists():
         return
-    for line in Path(path).read_text(encoding="utf-8").splitlines():
-        if not line or line.strip().startswith("#"):
-            continue
-        if "=" not in line:
+    for line in Path(path).read_text(encoding="utf-8-sig").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
             continue
         key, val = line.split("=", 1)
-        val = val.strip().strip('"').strip("'")
-        os.environ[key.strip()] = val
+        key = key.strip()
+        if key.startswith("export "):
+            key = key[len("export "):].strip()
+        os.environ[key] = unquote(val)
 
 FETCH_TIMEOUT = 10  # RSS 요청 타임아웃 (단위 초)
 
