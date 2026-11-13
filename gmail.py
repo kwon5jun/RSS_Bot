@@ -24,22 +24,25 @@ def _get_env(name: str) -> str:
 
 
 def build_body(summary: dict) -> tuple:
-    """메일 본문(텍스트, HTML)을 만든다."""
-    items = summary.get("items", [])
-    head = f"{summary.get('date')} 보안 뉴스 ({summary.get('total')}건 중 {len(items)}건 선별)"
+    """메일 제목과 본문(텍스트, HTML)을 만든다. 주제 제목은 HTML에서 볼드체로 표시한다."""
+    topics = summary.get("topics", [])
+    head = f"{summary.get('date')} 보안 뉴스 ({summary.get('total')}건 중 {summary.get('count', 0)}건 선별)"
 
     text_lines = [head, ""]
     html_lines = [f"<h2>{escape(head)}</h2>"]
-    if not items:
+    if not topics:
         text_lines.append("선별된 기사가 없습니다.")
         html_lines.append("<p>선별된 기사가 없습니다.</p>")
-    else:
+    for topic in topics:
+        name = topic.get("topic", "")
+        text_lines += [f"[{name}]", ""]
+        html_lines.append(f'<p style="font-size:17px;margin:24px 0 8px"><b>{escape(name)}</b></p>')
         html_lines.append("<ol>")
-        for i, item in enumerate(items, start=1):
+        for i, item in enumerate(topic.get("items", []), start=1):
             title, desc, link = item.get("title", ""), item.get("description", ""), item.get("link", "")
             text_lines += [f"{i}. {title}", desc, link, ""]
             html_lines.append(
-                f'<li style="margin-bottom:16px"><a href="{escape(link, quote=True)}"><b>{escape(title)}</b></a>'
+                f'<li style="margin-bottom:16px"><a href="{escape(link, quote=True)}">{escape(title)}</a>'
                 f'<br><span style="color:#555">{escape(desc)}</span></li>'
             )
         html_lines.append("</ol>")

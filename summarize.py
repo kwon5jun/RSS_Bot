@@ -32,7 +32,7 @@ MAX_TOKENS = 16000
 SYSTEM_PROMPT = """당신은 보안·IT 뉴스 큐레이터입니다.
 사용자가 하루 동안 수집된 기사 목록을 보냅니다. 각 기사는 [번호] 형식의 순번과 언론사, 제목, 본문 요약(description)으로 이루어져 있습니다.
 
-기사들의 제목과 description을 읽고, 아래 기준으로 걸러낸 뒤 남길 기사의 번호만 반환하세요.
+기사들의 제목과 description을 읽고, 아래 기준으로 걸러내고 분류한 결과를 반환하세요.
 
 1. 중복 제외: 같은 사건·발표·이슈를 다룬 기사는 언론사가 달라도 중복으로 봅니다.
    중복 묶음에서는 내용이 가장 구체적이고 정보가 많은 기사 하나만 남기고 나머지는 제외합니다.
@@ -42,12 +42,18 @@ SYSTEM_PROMPT = """당신은 보안·IT 뉴스 큐레이터입니다.
 3. 가치 있는 기사만 남기고 분류: 1, 2번을 거친 기사 중에서도 독자에게 실질적인 정보 가치가 있는 기사만 남깁니다.
    보안 사고·침해, 취약점, 위협·공격 동향, 정책·규제 변화, 업계에 영향을 주는 동향 분석이 이에 해당합니다.
    정보 가치가 낮거나 위 범주에 해당하지 않는 기사는 제외합니다.
+   남긴 기사는 주제별로 분류합니다. 분류의 제목 앞에는 반드시 @를 붙입니다. (예: "@보안 사고·침해")
+   주제 제목은 짧은 명사구로 쓰고, 기사가 없는 주제는 만들지 마세요.
 
-반환하는 번호는 입력에 있는 번호만 사용하세요."""
+출력 형식: lines 배열에 분류 제목과 기사 번호를 순서대로 넣습니다.
+- 분류 제목: "@주제 제목"
+- 기사 번호: 그 분류에 속한 기사의 번호만 숫자 문자열로 (예: "12")
+예) ["@보안 사고·침해", "3", "17", "@취약점", "8", "@정책·규제", "25"]
+각 기사 번호는 한 번만, 입력에 있는 번호만 사용하세요."""
 
 
 class Selection(BaseModel):
-    keep: List[int]  # 남길 기사 번호 (오름차순)
+    lines: List[str]  # "@주제 제목" 또는 기사 번호
 
 
 def build_prompt(items: list) -> str:
@@ -61,8 +67,32 @@ def build_prompt(items: list) -> str:
     return "\n\n".join(lines)
 
 
-def select_articles(client: anthropic.Anthropic, items: list) -> List[int]:
-    """Claude에게 기사 목록을 보내고 남길 기사 번호를 받는다."""
+def parse_lines(lines: List[str], total: int) -> List[dict]:
+    """@로 시작하는 줄은 주제 제목, 나머지는 기사 번호로 해석해 [{topic, numbers}]로 묶는다."""
+    groups = []
+    seen = set()
+    for raw in lines:
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("@"):
+            groups.append({"topic": line[1:].strip() or "기타", "numbers": []})
+            continue
+        try:
+            n = int(line.strip("[]# "))
+        except ValueError:
+            continue  # 숫자도 주제도 아닌 줄은 무시
+        if not 1 <= n <= total or n in seen:
+            continue  # 범위 밖 번호와 중복 번호 제거
+        seen.add(n)
+        if not groups:
+            groups.append({"topic": "기타", "numbers": []})  # 주제 제목 없이 나온 번호
+        groups[-1]["numbers"].append(n)
+    return [g for g in groups if g["numbers"]]
+
+
+def select_articles(client: anthropic.Anthropic, items: list) -> List[dict]:
+    """Claude에게 기사 목록을 보내고 주제별로 분류된 기사 번호를 받는다."""
     response = client.messages.parse(
         model=MODEL,
         max_tokens=MAX_TOKENS,
@@ -77,8 +107,7 @@ def select_articles(client: anthropic.Anthropic, items: list) -> List[int]:
     if response.stop_reason == "max_tokens":
         raise RuntimeError("응답이 max_tokens에서 잘렸습니다. MAX_TOKENS를 늘리거나 EFFORT를 낮추세요.")
 
-    # 범위 밖 번호와 중복 번호 제거
-    return sorted({n for n in response.parsed_output.keep if 1 <= n <= len(items)})
+    return parse_lines(response.parsed_output.lines, len(items))
 
 
 def main():
@@ -91,7 +120,7 @@ def main():
 
     client = anthropic.Anthropic()  # ANTHROPIC_API_KEY 환경변수 사용
     try:
-        keep = select_articles(client, items)
+        groups = select_articles(client, items)
     except anthropic.APIConnectionError as e:
         print(f"[SUMMARY ERROR] 네트워크 오류: {e}")
         return
@@ -102,24 +131,31 @@ def main():
         print(f"[SUMMARY ERROR] {e}")
         return
 
-    # 반환받은 번호 -> 제목, description, 링크
-    selected = [
+    # 반환받은 번호 -> 제목, description, 링크 (주제별)
+    topics = [
         {
-            "title": items[n - 1].get("title", ""),
-            "description": items[n - 1].get("description", ""),
-            "link": items[n - 1].get("link", ""),
+            "topic": g["topic"],
+            "items": [
+                {
+                    "title": items[n - 1].get("title", ""),
+                    "description": items[n - 1].get("description", ""),
+                    "link": items[n - 1].get("link", ""),
+                }
+                for n in g["numbers"]
+            ],
         }
-        for n in keep
+        for g in groups
     ]
+    count = sum(len(t["items"]) for t in topics)
     summary = {
         "date": daily.get("date"),
         "created_at": datetime.now().strftime("%Y-%m-%d_%H:%M:%S"),
         "total": len(items),
-        "count": len(selected),
-        "items": selected,
+        "count": count,
+        "topics": topics,
     }
     save_json(summary, SUMMARY_PATH)
-    print(f"{daily.get('date')}: {len(items)}건 중 {len(selected)}건 선별 -> {SUMMARY_PATH}")
+    print(f"{daily.get('date')}: {len(items)}건 중 {count}건, {len(topics)}개 주제로 선별 -> {SUMMARY_PATH}")
 
     try:
         send_summary_mail(summary)
