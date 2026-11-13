@@ -22,6 +22,9 @@ SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 465  # SSL
 SMTP_TIMEOUT = 30  # 단위 초
 
+# 메일 제목 ({date}는 본문 첫 줄과 같은 날짜: daily.json의 수집 날짜 YYYY-MM-DD)
+SUBJECT_FORMAT = "[보안동향] 보안뉴스 종합 ({date})"
+
 
 def _get_env(name: str) -> str:
     value = os.environ.get(name)
@@ -63,7 +66,8 @@ def build_body(summary: dict) -> tuple:
                 f'<br><span style="color:#555">{escape(desc)}</span></li>'
             )
         html_lines.append("</ol>")
-    return head, "\n".join(text_lines), "\n".join(html_lines)
+    subject = SUBJECT_FORMAT.format(date=summary.get("date"))  # 본문 첫 줄과 같은 날짜
+    return subject, "\n".join(text_lines), "\n".join(html_lines)
 
 
 def send_summary_mail(summary: dict) -> None:
