@@ -64,6 +64,7 @@ def build_body(summary: dict) -> tuple:
 
 
 def send_summary_mail(summary: dict) -> None:
+    """받는 사람마다 개별 메일로 전송한다. (받는 사람에게는 자신의 주소만 보임)"""
     sender = _get_env("SENDER_EMAIL")
     passwd = _get_env("SENDER_PASSWD")
     receivers = parse_receivers(_get_env("Receive_email"))
@@ -71,13 +72,23 @@ def send_summary_mail(summary: dict) -> None:
         raise RuntimeError("Receive_email에 받는 주소가 없습니다.")
 
     subject, text, html = build_body(summary)
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = sender
-    msg["To"] = ", ".join(receivers)
-    msg.attach(MIMEText(text, "plain", "utf-8"))
-    msg.attach(MIMEText(html, "html", "utf-8"))
 
+    failed = []
     with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=SMTP_TIMEOUT) as smtp:
         smtp.login(sender, passwd)
-        smtp.sendmail(sender, receivers, msg.as_string())
+        for receiver in receivers:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = sender
+            msg["To"] = receiver
+            msg.attach(MIMEText(text, "plain", "utf-8"))
+            msg.attach(MIMEText(html, "html", "utf-8"))
+            try:
+                smtp.sendmail(sender, [receiver], msg.as_string())
+            except smtplib.SMTPException as e:
+                # 한 명이 실패해도 나머지에게는 계속 전송
+                print(f"[MAIL ERROR] {receiver} -> {type(e).__name__}: {e}")
+                failed.append(receiver)
+
+    if failed:
+        raise RuntimeError(f"{len(receivers)}명 중 {len(failed)}명 전송 실패: {', '.join(failed)}")

@@ -15,5 +15,5 @@ crontab 예시 (날짜가 바뀌기 전에 실행해야 해당 날짜의 daily.j
 50 23 * * * cd /path/to/RSS_Bot && python3 summarize.py >> summarize.log 2>&1
 
 .env 값은 따옴표 없이, "..." 또는 '...'로 감싸서 모두 사용 가능 (export KEY=... 형식도 가능)
-Receive_email은 쉼표로 구분하면 여러 명에게 전송
+Receive_email은 쉼표로 구분하면 여러 명에게 각자 개별 메일로 전송 (받는 사람에게는 자신의 주소만 보임)
   예) Receive_email="a@gmail.com, b@naver.com"  또는  Receive_email="a@gmail.com", "b@naver.com"
