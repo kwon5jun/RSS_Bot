@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List
 
 import anthropic
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from util import load_env, load_json, save_json
 from daily import DAILY_PATH
@@ -60,6 +60,15 @@ class Selection(BaseModel):
     lines: List[str]  # "@주제 제목" 또는 기사 번호
 
 
+# 구조화된 출력 형식 (응답이 항상 {"lines": [...]} JSON으로 오도록 강제)
+OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {"lines": {"type": "array", "items": {"type": "string"}}},
+    "required": ["lines"],
+    "additionalProperties": False,
+}
+
+
 def build_prompt(items: list) -> str:
     """각 기사에 1부터 순번을 붙여 하나의 텍스트로 만든다."""
     lines = []
@@ -95,23 +104,49 @@ def parse_lines(lines: List[str], total: int) -> List[dict]:
     return [g for g in groups if g["numbers"]]
 
 
+def log_usage(response) -> None:
+    """API 응답의 토큰 사용량을 로그로 남긴다. (출력 토큰에는 thinking 토큰이 포함됨)"""
+    usage = response.usage
+    input_tokens = usage.input_tokens or 0
+    output_tokens = usage.output_tokens or 0
+    cache_write = getattr(usage, "cache_creation_input_tokens", None) or 0
+    cache_read = getattr(usage, "cache_read_input_tokens", None) or 0
+    total = input_tokens + cache_write + cache_read + output_tokens
+    log.info(
+        f"토큰 사용량: 입력 {input_tokens:,} / 출력 {output_tokens:,} "
+        f"(캐시 쓰기 {cache_write:,} / 캐시 읽기 {cache_read:,}) / 합계 {total:,} "
+        f"[model={response.model}, stop_reason={response.stop_reason}, request_id={response._request_id}]"
+    )
+
+
 def select_articles(client: anthropic.Anthropic, items: list) -> List[dict]:
     """Claude에게 기사 목록을 보내고 주제별로 분류된 기사 번호를 받는다."""
-    response = client.messages.parse(
+    # messages.parse는 응답이 잘리면 토큰 사용량을 남기기 전에 예외를 내므로
+    # create로 받아 사용량을 먼저 기록한 뒤 직접 검증한다.
+    response = client.messages.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,
-        output_config={"effort": EFFORT},
+        output_config={
+            "effort": EFFORT,
+            "format": {"type": "json_schema", "schema": OUTPUT_SCHEMA},
+        },
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": build_prompt(items)}],
-        output_format=Selection,
     )
+
+    log_usage(response)
 
     if response.stop_reason == "refusal":
         raise RuntimeError(f"Claude가 요청을 거절했습니다: {response.stop_details}")
     if response.stop_reason == "max_tokens":
         raise RuntimeError("응답이 max_tokens에서 잘렸습니다. MAX_TOKENS를 늘리거나 EFFORT를 낮추세요.")
 
-    return parse_lines(response.parsed_output.lines, len(items))
+    text = next((b.text for b in response.content if b.type == "text"), "")
+    try:
+        selection = Selection.model_validate_json(text)
+    except ValidationError as e:
+        raise RuntimeError(f"응답 JSON 형식 오류: {e}") from e
+    return parse_lines(selection.lines, len(items))
 
 
 def main():
